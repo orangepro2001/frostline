@@ -1,0 +1,14 @@
+[configuration]
+
+entry_symbol = "frostline_library_init"
+compatibility_minimum = "4.7"
+reloadable = true
+
+[libraries]
+
+linux.debug.x86_64 = "res://bin/libfrostline.so.linux.template_debug"
+linux.release.x86_64 = "res://bin/libfrostline.so.linux.template_release"
+windows.debug.x86_64 = "res://bin/libfrostline.dll.windows.template_debug"
+windows.release.x86_64 = "res://bin/libfrostline.dll.windows.template_release"
+android.debug.arm64 = "res://bin/libfrostline.so.android.template_debug"
+android.release.arm64 = "res://bin/libfrostline.so.android.template_release"

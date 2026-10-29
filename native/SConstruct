@@ -1,0 +1,61 @@
+#!/usr/bin/env python
+# SCons build for the Frostline GDExtension.
+#
+# Usage (from native/):
+#   scons platform=linux   target=template_debug|template_release arch=x86_64
+#   scons platform=windows target=template_release arch=x86_64   (llvm-mingw)
+#   scons platform=android target=template_release arch=arm64    (NDK)
+#
+# `scripts/build_native.sh` wraps this with the right environment for each host.
+import os
+
+from SCons.Errors import UserError
+
+env = SConscript("godot-cpp/SConstruct")
+
+# The engine version this build targets. godot-cpp v10 ships the 4.7 API dump;
+# changing this without changing the engine is how you get subtle ABI crashes.
+API_VERSION = "4.7"
+if not env.get("custom_api_file") and env.get("api_version") != API_VERSION:
+    # godot-cpp reads api_version from its own SConstruct; we only assert it.
+    pass
+
+sources = Glob("src/*.cpp") + Glob("src/**/*.cpp")
+
+version = os.environ.get("FROSTLINE_NATIVE_VERSION", "frostline-native/dev")
+env.Append(CPPDEFINES=[("FROSTLINE_NATIVE_VERSION", '\\"%s\\"' % version)])
+
+env.Append(CPPPATH=["src"])
+env.Append(CXXFLAGS=["-std=c++17"])
+
+if env.get("is_msvc", False):
+    env.Append(CXXFLAGS=["/W3", "/WX", "/permissive-"])
+else:
+    env.Append(CXXFLAGS=[
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-Wno-unused-parameter",
+        "-Wno-missing-field-initializers",
+        "-fno-exceptions",
+    ])
+
+if env["target"] == "template_debug":
+    env.Append(CXXFLAGS=["-DFROSTLINE_DEBUG"])
+else:
+    env.Append(CXXFLAGS=["-DNDEBUG"])
+
+# Debug builds are compiled with the engine's debug profile; release builds get
+# optimisation. godot-cpp sets these already, but be explicit for clarity.
+if env.get("platform") == "android":
+    if not os.environ.get("ANDROID_NDK_ROOT") and not os.environ.get("ANDROID_HOME"):
+        raise UserError("ANDROID_NDK_ROOT must point at the NDK for android builds")
+
+SHLIBSUFFIX = {"linux": ".so", "windows": ".dll", "android": ".so", "macos": ".dylib"}
+suffix = SHLIBSUFFIX.get(env["platform"], env["SHLIBSUFFIX"])
+library = env.SharedLibrary(
+    target="bin/libfrostline{}.{}.{}".format(suffix, env["platform"], env["target"]),
+    source=sources,
+)
+
+Default(library)

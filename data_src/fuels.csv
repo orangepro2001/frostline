@@ -1,0 +1,6 @@
+id,display_name,heat_value_kj_per_kg,mass_kg,burn_minutes,ignition_temp_c,note
+wood_log,Wood log,16000,1.2,180,120,Split firewood; the baseline fuel
+wood_plank,Wooden plank,15000,0.8,90,130,Pried off a wall or furniture
+book,Book,13000,0.4,30,180,Paper burns fast and hot
+coal,Coal,29000,1.0,420,150,High energy but hard to light
+furniture_scrap,Furniture scrap,14000,1.5,110,140,Chair and table pieces

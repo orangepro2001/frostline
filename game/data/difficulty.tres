@@ -1,0 +1,48 @@
+[gd_resource type="Resource" script_class="DifficultyTable" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://modes/difficulty_table.gd" id="1_script"]
+[ext_resource type="Script" path="res://modes/difficulty_profile.gd" id="2_row"]
+
+[sub_resource type="Resource" id="diff_narrative"]
+script = ExtResource("2_row")
+id = "narrative"
+display_name = "Narrative"
+cooling_rate_mult = 0.5
+resource_mult = 1.5
+forecast_error_c = 0.5
+event_frequency_mult = 0.5
+save_mode = "chapter_checkpoints"
+
+[sub_resource type="Resource" id="diff_standard"]
+script = ExtResource("2_row")
+id = "standard"
+display_name = "Standard"
+cooling_rate_mult = 1
+resource_mult = 1
+forecast_error_c = 1.5
+event_frequency_mult = 1
+save_mode = "shelter_only"
+
+[sub_resource type="Resource" id="diff_harsh"]
+script = ExtResource("2_row")
+id = "harsh"
+display_name = "Harsh"
+cooling_rate_mult = 1.4
+resource_mult = 0.7
+forecast_error_c = 3
+event_frequency_mult = 1.3
+save_mode = "shelter_only"
+
+[sub_resource type="Resource" id="diff_polar_night"]
+script = ExtResource("2_row")
+id = "polar_night"
+display_name = "Polar night"
+cooling_rate_mult = 1.8
+resource_mult = 0.5
+forecast_error_c = 5
+event_frequency_mult = 1.8
+save_mode = "permadeath"
+
+[resource]
+script = ExtResource("1_script")
+profiles = Array[ExtResource("2_row")]([SubResource("diff_narrative"), SubResource("diff_standard"), SubResource("diff_harsh"), SubResource("diff_polar_night")])

@@ -1,0 +1,58 @@
+[gd_resource type="Resource" script_class="FuelTable" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://systems/fuel/fuel_table.gd" id="1_script"]
+[ext_resource type="Script" path="res://systems/fuel/fuel_def.gd" id="2_row"]
+
+[sub_resource type="Resource" id="fuel_wood_log"]
+script = ExtResource("2_row")
+id = "wood_log"
+display_name = "Wood log"
+heat_value_kj_per_kg = 16000
+mass_kg = 1.2
+burn_minutes = 180
+ignition_temp_c = 120
+note = "Split firewood; the baseline fuel"
+
+[sub_resource type="Resource" id="fuel_wood_plank"]
+script = ExtResource("2_row")
+id = "wood_plank"
+display_name = "Wooden plank"
+heat_value_kj_per_kg = 15000
+mass_kg = 0.8
+burn_minutes = 90
+ignition_temp_c = 130
+note = "Pried off a wall or furniture"
+
+[sub_resource type="Resource" id="fuel_book"]
+script = ExtResource("2_row")
+id = "book"
+display_name = "Book"
+heat_value_kj_per_kg = 13000
+mass_kg = 0.4
+burn_minutes = 30
+ignition_temp_c = 180
+note = "Paper burns fast and hot"
+
+[sub_resource type="Resource" id="fuel_coal"]
+script = ExtResource("2_row")
+id = "coal"
+display_name = "Coal"
+heat_value_kj_per_kg = 29000
+mass_kg = 1
+burn_minutes = 420
+ignition_temp_c = 150
+note = "High energy but hard to light"
+
+[sub_resource type="Resource" id="fuel_furniture_scrap"]
+script = ExtResource("2_row")
+id = "furniture_scrap"
+display_name = "Furniture scrap"
+heat_value_kj_per_kg = 14000
+mass_kg = 1.5
+burn_minutes = 110
+ignition_temp_c = 140
+note = "Chair and table pieces"
+
+[resource]
+script = ExtResource("1_script")
+fuels = Array[ExtResource("2_row")]([SubResource("fuel_wood_log"), SubResource("fuel_wood_plank"), SubResource("fuel_book"), SubResource("fuel_coal"), SubResource("fuel_furniture_scrap")])

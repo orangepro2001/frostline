@@ -1,0 +1,10 @@
+id,name,conductance_w_per_k,heat_capacity_j_per_k,surface_coef_w_per_k,blocks_wind
+0,air,4.0,1000,3.0,false
+1,wood,1.5,30000,2.0,true
+2,stone,0.8,90000,1.0,true
+3,metal,40.0,40000,1.5,true
+4,insulation,0.12,15000,0.5,true
+5,door,2.5,25000,3.0,false
+6,window,5.0,6000,8.0,false
+7,ground,0.6,300000,0.4,true
+8,glass,6.0,8000,9.0,false

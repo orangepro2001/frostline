@@ -1,0 +1,38 @@
+# Godot
+.godot/
+game/.godot/
+*.translation
+export_credentials.cfg
+
+# Native build output
+native/bin/
+native/godot-cpp/
+game/bin/libfrostline.*
+build/
+*.o
+*.os
+*.a
+*.so
+*.obj
+*.lib
+
+# Go
+tools/bin/
+
+# Test reports
+game/reports/
+*.results.xml
+
+# Local tooling / secrets
+*.keystore
+*.jks
+*.p12
+*.pem
+.env
+.env.*
+!.env.example
+local.properties
+.idea/
+.vscode/
+*.swp
+.DS_Store

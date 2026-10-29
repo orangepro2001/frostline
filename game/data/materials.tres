@@ -1,0 +1,89 @@
+[gd_resource type="Resource" script_class="MaterialTable" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://systems/thermal/material_table.gd" id="1_script"]
+[ext_resource type="Script" path="res://systems/thermal/material_def.gd" id="2_row"]
+
+[sub_resource type="Resource" id="mat_0"]
+script = ExtResource("2_row")
+id = 0
+id_name = "air"
+conductance_w_per_k = 4
+heat_capacity_j_per_k = 1000
+surface_coef_w_per_k = 3
+blocks_wind = false
+
+[sub_resource type="Resource" id="mat_1"]
+script = ExtResource("2_row")
+id = 1
+id_name = "wood"
+conductance_w_per_k = 1.5
+heat_capacity_j_per_k = 30000
+surface_coef_w_per_k = 2
+blocks_wind = true
+
+[sub_resource type="Resource" id="mat_2"]
+script = ExtResource("2_row")
+id = 2
+id_name = "stone"
+conductance_w_per_k = 0.8
+heat_capacity_j_per_k = 90000
+surface_coef_w_per_k = 1
+blocks_wind = true
+
+[sub_resource type="Resource" id="mat_3"]
+script = ExtResource("2_row")
+id = 3
+id_name = "metal"
+conductance_w_per_k = 40
+heat_capacity_j_per_k = 40000
+surface_coef_w_per_k = 1.5
+blocks_wind = true
+
+[sub_resource type="Resource" id="mat_4"]
+script = ExtResource("2_row")
+id = 4
+id_name = "insulation"
+conductance_w_per_k = 0.12
+heat_capacity_j_per_k = 15000
+surface_coef_w_per_k = 0.5
+blocks_wind = true
+
+[sub_resource type="Resource" id="mat_5"]
+script = ExtResource("2_row")
+id = 5
+id_name = "door"
+conductance_w_per_k = 2.5
+heat_capacity_j_per_k = 25000
+surface_coef_w_per_k = 3
+blocks_wind = false
+
+[sub_resource type="Resource" id="mat_6"]
+script = ExtResource("2_row")
+id = 6
+id_name = "window"
+conductance_w_per_k = 5
+heat_capacity_j_per_k = 6000
+surface_coef_w_per_k = 8
+blocks_wind = false
+
+[sub_resource type="Resource" id="mat_7"]
+script = ExtResource("2_row")
+id = 7
+id_name = "ground"
+conductance_w_per_k = 0.6
+heat_capacity_j_per_k = 300000
+surface_coef_w_per_k = 0.4
+blocks_wind = true
+
+[sub_resource type="Resource" id="mat_8"]
+script = ExtResource("2_row")
+id = 8
+id_name = "glass"
+conductance_w_per_k = 6
+heat_capacity_j_per_k = 8000
+surface_coef_w_per_k = 9
+blocks_wind = false
+
+[resource]
+script = ExtResource("1_script")
+materials = Array[ExtResource("2_row")]([SubResource("mat_0"), SubResource("mat_1"), SubResource("mat_2"), SubResource("mat_3"), SubResource("mat_4"), SubResource("mat_5"), SubResource("mat_6"), SubResource("mat_7"), SubResource("mat_8")])
