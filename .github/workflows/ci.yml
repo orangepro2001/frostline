@@ -1,0 +1,145 @@
+name: CI
+
+# Everything that can be checked without a GPU runs here. The build machine is
+# the self-hosted runner on tony-ai-pc-1: it is the same class of machine the
+# game is exported on, it already has Godot 4.7.2 / the Android SDK / llvm-mingw
+# installed, and its glibc matches the Godot binary (GitHub's ubuntu-latest is
+# older than the engine build, so the stock image cannot even start it).
+#
+# A second, hosted job runs the pure C++ tests so that a broken self-hosted
+# runner can never hide a regression in the simulation core.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2
+  FROSTLINE_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '0.0.0-dev' }}
+
+jobs:
+  native-core:
+    name: C++ core (doctest, hosted)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run thermal core tests
+        run: ./scripts/test_native.sh
+
+  pipeline:
+    name: Full pipeline (self-hosted, tony-ai-pc-1)
+    runs-on: [self-hosted, linux, x64, frostline]
+    needs: native-core
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          lfs: true
+
+      - name: Toolchain
+        run: ./scripts/setup.sh
+
+      - name: Build native (linux debug)
+        run: ./scripts/build_native.sh linux debug
+
+      - name: Tests (doctest + tablegen check + gdUnit4)
+        run: ./scripts/run_tests.sh
+
+      - name: Build native (linux release)
+        run: ./scripts/build_native.sh linux release
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: |
+            game/reports/**
+            build/native-tests/**
+          if-no-files-found: ignore
+          retention-days: 14
+
+  export:
+    name: Export (${{ matrix.platform }} ${{ matrix.mode }})
+    runs-on: [self-hosted, linux, x64, frostline]
+    needs: pipeline
+    if: github.event_name != 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows
+            mode: release
+          - platform: android
+            mode: release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          lfs: true
+
+      - name: Build native for the target
+        env:
+          ANDROID_NDK_ROOT: ${{ vars.ANDROID_NDK_ROOT }}
+        run: ./scripts/build_native.sh ${{ matrix.platform }} ${{ matrix.mode }}
+
+      - name: Export
+        env:
+          ANDROID_HOME: ${{ vars.ANDROID_HOME }}
+          ANDROID_NDK_ROOT: ${{ vars.ANDROID_NDK_ROOT }}
+          FROSTLINE_KEYSTORE: ${{ secrets.FROSTLINE_KEYSTORE_PATH }}
+          FROSTLINE_KEYSTORE_USER: ${{ secrets.FROSTLINE_KEYSTORE_USER }}
+          FROSTLINE_KEYSTORE_PASS: ${{ secrets.FROSTLINE_KEYSTORE_PASS }}
+        run: ./scripts/export.sh ${{ matrix.platform }} ${{ matrix.mode }} build/export
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frostline-${{ matrix.platform }}-${{ matrix.mode }}
+          path: build/export/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish to release-publish
+    runs-on: [self-hosted, linux, x64, frostline]
+    needs: export
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: frostline-*
+          merge-multiple: true
+
+      - name: Publish
+        env:
+          RELHUB_URL: ${{ vars.RELHUB_URL }}
+          RELHUB_TOKEN: ${{ secrets.RELHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          ver="${GITHUB_REF_NAME#v}"
+          code="$(( ${ver%%.*} * 10000 + $(echo "$ver" | cut -d. -f2) * 100 + $(echo "$ver" | cut -d. -f3) ))"
+          notes="$(git log -1 --pretty=%B)"
+          ls -la dist
+          for f in dist/*; do
+            case "$f" in
+              *win-x64*.zip) platform=win-x64 ;;
+              *android*.aab|*android*.apk) platform=android ;;
+              *) echo "skipping $f"; continue ;;
+            esac
+            echo "publishing $f as $platform $ver ($code)"
+            curl -fsS -X POST "$RELHUB_URL/v1/apps/frostline/$platform/releases" \
+              -H "Authorization: Bearer $RELHUB_TOKEN" \
+              -F "versionCode=$code" -F "versionName=$ver" -F "notes=$notes" \
+              -F "file=@$f"
+          done
