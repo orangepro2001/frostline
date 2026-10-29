@@ -48,6 +48,14 @@ fi
 FLAG="--export-release"
 [[ "$MODE" == debug ]] && FLAG="--export-debug"
 
+# The editor loads the extension of the *host* platform to open the project at
+# all, so a checkout that only has the target library cannot even start an
+# export. Build the linux debug library first when it is missing.
+if [[ ! -f "$ROOT/game/bin/libfrostline.so.linux.template_debug" ]]; then
+	echo "==> host extension missing, building linux debug first"
+	"$ROOT/scripts/build_native.sh" linux debug >/dev/null
+fi
+
 # Import first: a fresh checkout has no .godot/ and export would fail.
 "$GODOT_BIN" --headless --editor --quit --path "$ROOT/game" >/dev/null 2>&1 || true
 
