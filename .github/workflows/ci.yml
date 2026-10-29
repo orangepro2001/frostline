@@ -1,13 +1,11 @@
 name: CI
 
-# Everything that can be checked without a GPU runs here. The build machine is
-# the self-hosted runner on tony-ai-pc-1: it is the same class of machine the
-# game is exported on, it already has Godot 4.7.2 / the Android SDK / llvm-mingw
-# installed, and its glibc matches the Godot binary (GitHub's ubuntu-latest is
-# older than the engine build, so the stock image cannot even start it).
+# Everything runs on GitHub-hosted Ubuntu runners. The engine binary only needs
+# glibc 2.28, which ubuntu-latest satisfies, so no self-hosted machine is
+# involved for tests or for the cross-compiled native libraries.
 #
-# A second, hosted job runs the pure C++ tests so that a broken self-hosted
-# runner can never hide a regression in the simulation core.
+#   push/PR  -> doctest, tablegen check, GDExtension build, gdUnit4
+#   tag v*   -> the same, plus Windows/Android export and a publish to relhub
 
 on:
   push:
@@ -22,96 +20,119 @@ concurrency:
 
 env:
   GODOT_VERSION: 4.7.2
-  FROSTLINE_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '0.0.0-dev' }}
-  # Defaults for the self-hosted runner (tony-ai-pc-1). Override with repository
-  # variables of the same name if the toolchain ever moves.
-  RELHUB_URL: ${{ vars.RELHUB_URL || 'https://tony-ai-pc-1.tail9f7f1f.ts.net/release' }}
-  ANDROID_HOME: ${{ vars.ANDROID_HOME || '/home/tony/Android/Sdk' }}
-  ANDROID_NDK_ROOT: ${{ vars.ANDROID_NDK_ROOT || '/home/tony/Android/Sdk/ndk/28.2.13676358' }}
+  GODOT_BIN: /opt/godot/godot
 
 jobs:
-  native-core:
-    name: C++ core (doctest, hosted)
+  test:
+    name: Test
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build and run thermal core tests
-        run: ./scripts/test_native.sh
-
-  pipeline:
-    name: Full pipeline (self-hosted, tony-ai-pc-1)
-    runs-on: [self-hosted, linux, x64, frostline]
-    needs: native-core
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-          lfs: true
 
-      - name: Toolchain
-        run: ./scripts/setup.sh
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
 
-      - name: Build native (linux debug)
+      - run: pipx install scons
+
+      - name: Fetch Godot
+        run: |
+          set -euo pipefail
+          sudo mkdir -p /opt/godot
+          url="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          curl -fsSL -o /tmp/godot.zip "$url"
+          sudo unzip -q -o /tmp/godot.zip -d /opt/godot
+          sudo mv "/opt/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" "$GODOT_BIN"
+          sudo chmod +x "$GODOT_BIN"
+          "$GODOT_BIN" --version
+
+      - name: C++ core (doctest)
+        run: ./scripts/test_native.sh
+
+      - name: Generated data is up to date
+        run: cd tools && go run ./cmd/tablegen -root .. -check
+
+      - name: Build GDExtension (linux debug)
         run: ./scripts/build_native.sh linux debug
 
-      - name: Tests (doctest + tablegen check + gdUnit4)
+      - name: Godot tests (gdUnit4 + native smoke)
         run: ./scripts/run_tests.sh
-
-      - name: Build native (linux release)
-        run: ./scripts/build_native.sh linux release
 
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: reports
-          path: |
-            game/reports/**
-            build/native-tests/**
+          name: test-reports
+          path: game/reports/**
           if-no-files-found: ignore
           retention-days: 14
 
   export:
-    name: Export (${{ matrix.platform }} ${{ matrix.mode }})
-    runs-on: [self-hosted, linux, x64, frostline]
-    needs: pipeline
-    if: github.event_name != 'pull_request'
+    name: Export ${{ matrix.platform }}
+    needs: test
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - platform: windows
-            mode: release
-          - platform: android
-            mode: release
+        platform: [windows, android]
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-          lfs: true
 
-      - name: Build native for the target
-        run: ./scripts/build_native.sh ${{ matrix.platform }} ${{ matrix.mode }}
+      - run: pipx install scons
+
+      - name: Fetch Godot
+        run: |
+          set -euo pipefail
+          sudo mkdir -p /opt/godot
+          url="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          curl -fsSL -o /tmp/godot.zip "$url"
+          sudo unzip -q -o /tmp/godot.zip -d /opt/godot
+          sudo mv "/opt/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" "$GODOT_BIN"
+          sudo chmod +x "$GODOT_BIN"
+
+      - name: Install export templates
+        run: |
+          set -euo pipefail
+          url="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          curl -fsSL -o /tmp/templates.tpz "$url"
+          mkdir -p /tmp/tpl && unzip -q -o /tmp/templates.tpz -d /tmp/tpl
+          dest="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$dest"
+          mv /tmp/tpl/templates/* "$dest"/
+
+      - name: Install llvm-mingw
+        if: matrix.platform == 'windows'
+        run: |
+          set -euo pipefail
+          url="https://github.com/mstorsjo/llvm-mingw/releases/download/20261020/llvm-mingw-20261020-ucrt-ubuntu-22.04-x86_64.tar.xz"
+          curl -fsSL -o /tmp/llvm-mingw.tar.xz "$url"
+          sudo mkdir -p /opt/llvm-mingw
+          sudo tar -xJf /tmp/llvm-mingw.tar.xz -C /opt/llvm-mingw --strip-components=1
+          echo "/opt/llvm-mingw/bin" >> "$GITHUB_PATH"
+          /opt/llvm-mingw/bin/x86_64-w64-mingw32-clang++ --version | head -1
+
+      - name: Build native
+        run: ./scripts/build_native.sh ${{ matrix.platform }} release
 
       - name: Export
-        env:
-          FROSTLINE_KEYSTORE: ${{ secrets.FROSTLINE_KEYSTORE_PATH }}
-          FROSTLINE_KEYSTORE_USER: ${{ secrets.FROSTLINE_KEYSTORE_USER }}
-          FROSTLINE_KEYSTORE_PASS: ${{ secrets.FROSTLINE_KEYSTORE_PASS }}
-        run: ./scripts/export.sh ${{ matrix.platform }} ${{ matrix.mode }} build/export
+        run: ./scripts/export.sh ${{ matrix.platform }} release build/export
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: frostline-${{ matrix.platform }}-${{ matrix.mode }}
+          name: frostline-${{ matrix.platform }}
           path: build/export/*
           if-no-files-found: error
           retention-days: 14
 
   publish:
-    name: Publish to release-publish
-    runs-on: [self-hosted, linux, x64, frostline]
+    name: Publish
     needs: export
+    runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v4
@@ -122,22 +143,24 @@ jobs:
           pattern: frostline-*
           merge-multiple: true
 
-      - name: Publish
+      - name: Publish to relhub
         env:
+          RELHUB_URL: ${{ vars.RELHUB_URL || 'https://tony-ai-pc-1.tail9f7f1f.ts.net/release' }}
           RELHUB_TOKEN: ${{ secrets.RELHUB_TOKEN }}
         run: |
           set -euo pipefail
           ver="${GITHUB_REF_NAME#v}"
-          code="$(( ${ver%%.*} * 10000 + $(echo "$ver" | cut -d. -f2) * 100 + $(echo "$ver" | cut -d. -f3) ))"
+          code=$(( $(echo "$ver" | cut -d. -f1) * 10000 + $(echo "$ver" | cut -d. -f2) * 100 + $(echo "$ver" | cut -d. -f3) ))
           notes="$(git log -1 --pretty=%B)"
-          ls -la dist
+          shopt -s nullglob
           for f in dist/*; do
             case "$f" in
               *win-x64*.zip) platform=win-x64 ;;
-              *android*.aab|*android*.apk) platform=android ;;
-              *) echo "skipping $f"; continue ;;
+              *android*.aab) platform=android ;;
+              *android*.apk) platform=android ;;
+              *) echo "skip $f"; continue ;;
             esac
-            echo "publishing $f as $platform $ver ($code)"
+            echo "publish $f -> $platform $ver ($code)"
             curl -fsS -X POST "$RELHUB_URL/v1/apps/frostline/$platform/releases" \
               -H "Authorization: Bearer $RELHUB_TOKEN" \
               -F "versionCode=$code" -F "versionName=$ver" -F "notes=$notes" \

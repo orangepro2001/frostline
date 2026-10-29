@@ -23,6 +23,11 @@ fi
 step "generated data is up to date"
 (cd "$ROOT/tools" && go run ./cmd/tablegen -root "$ROOT" -check)
 
+if ! command -v "$GODOT_BIN" >/dev/null 2>&1; then
+	echo "GODOT not found: set GODOT=/path/to/godot or skip with --fast" >&2
+	exit 1
+fi
+
 step "Godot import (also refreshes the GDExtension list)"
 # The editor writes .godot/extension_list.cfg, which is what makes a headless
 # run load the compiled extension. A plain `--headless --quit` game run does not

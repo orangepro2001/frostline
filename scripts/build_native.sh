@@ -31,12 +31,17 @@ case "$PLATFORM" in
 		ARTIFACT="libfrostline.so.linux.${SCONS_TARGET}"
 		;;
 	windows)
-		export MINGW_PREFIX="${MINGW_PREFIX:-x86_64-w64-mingw32}"
-		if ! command -v "${MINGW_PREFIX}-g++" >/dev/null 2>&1 && ! command -v "${MINGW_PREFIX}-llvm-g++" >/dev/null 2>&1; then
-			echo "note: ${MINGW_PREFIX} g++ not found; godot-cpp will try the next available toolchain" >&2
+		# llvm-mingw is preferred (no MSVC anywhere in the toolchain). Its tools
+		# are `x86_64-w64-mingw32-clang++`, and godot-cpp picks them up through
+		# MINGW_PREFIX when `use_mingw=yes` is set.
+		if command -v x86_64-w64-mingw32-clang++ >/dev/null 2>&1; then
+			export MINGW_PREFIX=x86_64-w64-mingw32
+		elif command -v llvm-mingw-ucrt-x86_64-g++ >/dev/null 2>&1; then
+			export MINGW_PREFIX=llvm-mingw-ucrt-x86_64
+		else
+			export MINGW_PREFIX="${MINGW_PREFIX:-x86_64-w64-mingw32}"
 		fi
 		SCONS_ARGS+=(arch=x86_64 use_mingw=yes)
-		# llvm-mingw ships its own windres/lld; point scons at them when present.
 		if command -v "${MINGW_PREFIX}-windres" >/dev/null 2>&1; then
 			export WINDRES="${MINGW_PREFIX}-windres"
 		fi
