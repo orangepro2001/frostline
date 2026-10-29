@@ -20,7 +20,6 @@ concurrency:
 
 env:
   GODOT_VERSION: 4.7.2
-  GODOT_BIN: /opt/godot/godot
 
 jobs:
   test:
@@ -37,16 +36,14 @@ jobs:
 
       - run: pipx install scons
 
-      - name: Fetch Godot
+      - name: Install Godot
         run: |
           set -euo pipefail
-          sudo mkdir -p /opt/godot
           url="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
           curl -fsSL -o /tmp/godot.zip "$url"
-          sudo unzip -q -o /tmp/godot.zip -d /opt/godot
-          sudo mv "/opt/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" "$GODOT_BIN"
-          sudo chmod +x "$GODOT_BIN"
-          "$GODOT_BIN" --version
+          unzip -q -o /tmp/godot.zip -d /tmp/godot
+          sudo install -m 0755 "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+          godot --version
 
       - name: C++ core (doctest)
         run: ./scripts/test_native.sh
@@ -85,15 +82,14 @@ jobs:
 
       - run: pipx install scons
 
-      - name: Fetch Godot
+      - name: Install Godot
         run: |
           set -euo pipefail
-          sudo mkdir -p /opt/godot
           url="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
           curl -fsSL -o /tmp/godot.zip "$url"
-          sudo unzip -q -o /tmp/godot.zip -d /opt/godot
-          sudo mv "/opt/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" "$GODOT_BIN"
-          sudo chmod +x "$GODOT_BIN"
+          unzip -q -o /tmp/godot.zip -d /tmp/godot
+          sudo install -m 0755 "/tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64" /usr/local/bin/godot
+          godot --version
 
       - name: Install export templates
         run: |
