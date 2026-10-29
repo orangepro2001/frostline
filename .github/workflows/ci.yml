@@ -23,6 +23,11 @@ concurrency:
 env:
   GODOT_VERSION: 4.7.2
   FROSTLINE_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '0.0.0-dev' }}
+  # Defaults for the self-hosted runner (tony-ai-pc-1). Override with repository
+  # variables of the same name if the toolchain ever moves.
+  RELHUB_URL: ${{ vars.RELHUB_URL || 'https://tony-ai-pc-1.tail9f7f1f.ts.net/release' }}
+  ANDROID_HOME: ${{ vars.ANDROID_HOME || '/home/tony/Android/Sdk' }}
+  ANDROID_NDK_ROOT: ${{ vars.ANDROID_NDK_ROOT || '/home/tony/Android/Sdk/ndk/28.2.13676358' }}
 
 jobs:
   native-core:
@@ -86,14 +91,10 @@ jobs:
           lfs: true
 
       - name: Build native for the target
-        env:
-          ANDROID_NDK_ROOT: ${{ vars.ANDROID_NDK_ROOT }}
         run: ./scripts/build_native.sh ${{ matrix.platform }} ${{ matrix.mode }}
 
       - name: Export
         env:
-          ANDROID_HOME: ${{ vars.ANDROID_HOME }}
-          ANDROID_NDK_ROOT: ${{ vars.ANDROID_NDK_ROOT }}
           FROSTLINE_KEYSTORE: ${{ secrets.FROSTLINE_KEYSTORE_PATH }}
           FROSTLINE_KEYSTORE_USER: ${{ secrets.FROSTLINE_KEYSTORE_USER }}
           FROSTLINE_KEYSTORE_PASS: ${{ secrets.FROSTLINE_KEYSTORE_PASS }}
@@ -123,7 +124,6 @@ jobs:
 
       - name: Publish
         env:
-          RELHUB_URL: ${{ vars.RELHUB_URL }}
           RELHUB_TOKEN: ${{ secrets.RELHUB_TOKEN }}
         run: |
           set -euo pipefail
