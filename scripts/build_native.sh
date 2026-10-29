@@ -31,19 +31,15 @@ case "$PLATFORM" in
 		ARTIFACT="libfrostline.so.linux.${SCONS_TARGET}"
 		;;
 	windows)
-		# llvm-mingw is preferred (no MSVC anywhere in the toolchain). Its tools
-		# are `x86_64-w64-mingw32-clang++`, and godot-cpp picks them up through
-		# MINGW_PREFIX when `use_mingw=yes` is set.
+		# llvm-mingw preferred: it has no g++ driver, so godot-cpp must be told
+		# `use_llvm=yes` and given the install prefix (it builds
+		# "$prefix/bin/x86_64-w64-mingw32-clang++").
 		if command -v x86_64-w64-mingw32-clang++ >/dev/null 2>&1; then
-			export MINGW_PREFIX=x86_64-w64-mingw32
-		elif command -v llvm-mingw-ucrt-x86_64-g++ >/dev/null 2>&1; then
-			export MINGW_PREFIX=llvm-mingw-ucrt-x86_64
+			LLVM_BIN="$(dirname "$(command -v x86_64-w64-mingw32-clang++)")"
+			SCONS_ARGS+=(arch=x86_64 use_mingw=yes use_llvm=yes "mingw_prefix=$(dirname "$LLVM_BIN")")
 		else
-			export MINGW_PREFIX="${MINGW_PREFIX:-x86_64-w64-mingw32}"
-		fi
-		SCONS_ARGS+=(arch=x86_64 use_mingw=yes)
-		if command -v "${MINGW_PREFIX}-windres" >/dev/null 2>&1; then
-			export WINDRES="${MINGW_PREFIX}-windres"
+			# MinGW-w64 with a g++ driver; its prefix is part of the tool name.
+			SCONS_ARGS+=(arch=x86_64 use_mingw=yes "mingw_prefix=")
 		fi
 		LIB="libfrostline.dll"
 		ARTIFACT="libfrostline.dll.windows.${SCONS_TARGET}"
