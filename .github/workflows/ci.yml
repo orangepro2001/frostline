@@ -69,15 +69,15 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  # Windows is the one export that works with nothing but the engine, so CI
+  # builds and ships it. Android needs the SDK/NDK and a keystore: that export is
+  # scripts/export.sh on the build machine, with the signing material injected
+  # from the environment.
   export:
-    name: Export ${{ matrix.platform }}
+    name: Export Windows
     needs: test
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [windows, android]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -106,7 +106,6 @@ jobs:
           mv /tmp/tpl/templates/* "$dest"/
 
       - name: Install llvm-mingw
-        if: matrix.platform == 'windows'
         run: |
           set -euo pipefail
           url="https://github.com/mstorsjo/llvm-mingw/releases/download/20261020/llvm-mingw-20261020-ucrt-ubuntu-22.04-x86_64.tar.xz"
@@ -116,15 +115,15 @@ jobs:
           echo "/opt/llvm-mingw/bin" >> "$GITHUB_PATH"
           /opt/llvm-mingw/bin/x86_64-w64-mingw32-clang++ --version | head -1
 
-      - name: Build native
-        run: ./scripts/build_native.sh ${{ matrix.platform }} release
+      - name: Build native (windows x86_64)
+        run: ./scripts/build_native.sh windows release
 
       - name: Export
-        run: ./scripts/export.sh ${{ matrix.platform }} release build/export
+        run: ./scripts/export.sh windows release build/export
 
       - uses: actions/upload-artifact@v4
         with:
-          name: frostline-${{ matrix.platform }}
+          name: frostline-windows
           path: build/export/*
           if-no-files-found: error
           retention-days: 14
